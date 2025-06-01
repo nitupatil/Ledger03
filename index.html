@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Ledger Manager</title>
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            background-color: #f8f9fa;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        /* Header */
+        .header {
+            background-color: #4a6fa5;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            position: relative;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 1.3rem;
+            margin: 0;
+        }
+        
+        .back-btn {
+            position: absolute;
+            left: 15px;
+            top: 15px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+        
+        /* Screens */
+        .screen {
+            display: none;
+        }
+        
+        .screen.active {
+            display: block;
+        }
+        
+        /* Dashboard Screen */
+        .search-container {
+            padding: 15px;
+            background-color: white;
+            position: sticky;
+            top: 53px;
+            z-index: 10;
+        }
+        
+        #searchInput {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+        
+        .ledger-list {
+            padding: 0 15px 15px;
+        }
+        
+        .ledger-card {
+            background-color: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .ledger-name {
+            font-weight: bold;
+        }
+        
+        .ledger-balance {
+            font-weight: bold;
+        }
+        
+        .positive {
+            color: #4CAF50;
+        }
+        
+        .negative {
+            color: #F44336;
+        }
+        
+        /* Ledger Info */
+        .ledger-info {
+            background-color: white;
+            padding: 15px;
+            margin: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .current-date {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        /* Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            padding: 0 15px 15px;
+        }
+        
+        .action-btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .primary-btn {
+            background-color: #4a6fa5;
+            color: white;
+        }
+        
+        .debit-btn {
+            background-color: #4CAF50;
+            color: white;
+        }
+        
+        .credit-btn {
+            background-color: #F44336;
+            color: white;
+        }
+        
+        .secondary-btn {
+            background-color: #e0e0e0;
+            color: #333;
+        }
+        
+        /* Transactions */
+        .transactions-container {
+            background-color: white;
+            margin: 0 15px 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            overflow: hidden;
+        }
+        
+        .transactions-header {
+            display: grid;
+            grid-template-columns: 1fr 3fr 1fr;
+            background-color: #f1f3f4;
+            padding: 12px 15px;
+            font-weight: bold;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .transactions-list {
+            max-height: calc(100vh - 300px);
+            overflow-y: auto;
+        }
+        
+        .transaction-item {
+            display: grid;
+            grid-template-columns: 1fr 3fr 1fr;
+            padding: 12px 15px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .transaction-item:last-child {
+            border-bottom: none;
+        }
+        
+        .transaction-description {
+            word-wrap: break-word;
+            white-space: pre-wrap;
+            max-height: 60px;
+            overflow: hidden;
+        }
+        
+        .transaction-amount {
+            text-align: right;
+            font-weight: 500;
+        }
+        
+        .transaction-actions {
+            display: flex;
+            gap: 5px;
+            justify-content: flex-end;
+        }
+        
+        .transaction-action-btn {
+            background: none;
+            border: none;
+            color: #4a6fa5;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        
+        .debit {
+            color: #4CAF50;
+        }
+        
+        .credit {
+            color: #F44336;
+        }
+        
+        /* Backup Screen */
+        .backup-options {
+            padding: 15px;
+        }
+        
+        .backup-card {
+            background-color: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        
+        .backup-card h3 {
+            margin-bottom: 10px;
+        }
+        
+        /* Forms */
+        .form-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        
+        .form-container.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        
+        .form-content {
+            background-color: white;
+            width: 90%;
+            max-width: 400px;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .form-title {
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+            text-align: center;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        /* Floating Action Button */
+        .fab {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background-color: #4a6fa5;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            cursor: pointer;
+            z-index: 100;
+        }
+        
+        /* Print Screen */
+        .print-screen {
+            padding: 15px;
+        }
+        
+        .print-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .print-info {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        
+        .print-transactions {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+        }
+        
+        .print-transactions th {
+            background-color: #f1f3f4;
+            padding: 10px;
+            text-align: left;
+            border-bottom: 2px solid #ddd;
+        }
+        
+        .print-transactions td {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .print-description {
+            max-width: 200px;
+            word-wrap: break-word;
+        }
+        
+        .signatory {
+            text-align: right;
+            margin-top: 50px;
+        }
+        
+        /* Responsive */
+        @media (max-width: 600px) {
+            .transactions-header,
+            .transaction-item {
+                grid-template-columns: 1fr 2fr 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <button class="back-btn" id="backBtn">←</button>
+        <h1 id="screenTitle">Digital Ledger Manager</h1>
+    </div>
+    
+    <!-- Dashboard Screen -->
+    <div id="dashboardScreen" class="screen active">
+        <div class="search-container">
+            <input type="text" id="searchInput" placeholder="Search ledgers...">
+        </div>
+        <div class="ledger-list" id="ledgerList">
+            <!-- Ledgers will be added here dynamically -->
+        </div>
+        
+        <!-- Floating Action Button -->
+        <div class="fab" id="addLedgerBtn">+</div>
+    </div>
+    
+    <!-- Ledger View Screen -->
+    <div id="ledgerScreen" class="screen">
+        <div class="ledger-info">
+            <div>
+                <div class="ledger-name" id="ledgerTitle">Business Account</div>
+                <div class="current-date" id="currentDate">15 Mar 2023</div>
+            </div>
+            <div class="balance positive" id="currentBalance">₹12,450.00</div>
+        </div>
+        
+        <div class="action-buttons">
+            <button class="action-btn debit-btn" id="addDebitBtn">Debit</button>
+            <button class="action-btn credit-btn" id="addCreditBtn">Credit</button>
+            <button class="action-btn primary-btn" id="printPdfBtn">Download PDF</button>
+        </div>
+        
+        <div class="transactions-container">
+            <div class="transactions-header">
+                <div>Date</div>
+                <div>Description</div>
+                <div>Amount</div>
+            </div>
+            <div class="transactions-list" id="transactionsList">
+                <!-- Transactions will be added here dynamically -->
+            </div>
+        </div>
+        
+        <!-- Floating Action Button -->
+        <div class="fab" id="backupBtn">↥</div>
+    </div>
+    
+    <!-- Backup Screen -->
+    <div id="backupScreen" class="screen">
+        <div class="backup-options">
+            <div class="backup-card">
+                <h3>Download Data</h3>
+                <button class="action-btn primary-btn" id="downloadJsonBtn">Download as JSON</button>
+                <button class="action-btn primary-btn" style="margin-top: 10px;" id="downloadExcelBtn">Download as Excel</button>
+            </div>
+            
+            <div class="backup-card">
+                <h3>Restore Data</h3>
+                <input type="file" id="restoreFileInput" class="form-control" style="margin-bottom: 10px;" accept=".json,.xlsx,.xls">
+                <button class="action-btn secondary-btn" id="restoreBtn">Restore Data</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Forms -->
+    <div class="form-container" id="ledgerFormContainer">
+        <div class="form-content">
+            <h3 class="form-title" id="ledgerFormTitle">Add New Ledger</h3>
+            <div class="form-group">
+                <label for="ledgerName">Ledger Name</label>
+                <input type="text" id="ledgerName" class="form-control" placeholder="Enter ledger name">
+            </div>
+            <div class="form-actions">
+                <button class="action-btn secondary-btn" id="cancelLedgerBtn">Cancel</button>
+                <button class="action-btn primary-btn" id="saveLedgerBtn">Save</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="form-container" id="transactionFormContainer">
+        <div class="form-content">
+            <h3 class="form-title" id="transactionFormTitle">Add Transaction</h3>
+            <div class="form-group">
+                <label for="transactionDate">Date</label>
+                <input type="date" id="transactionDate" class="form-control">
+            </div>
+            <div class="form-group">
+                <label for="transactionDescription">Description (max 40 chars)</label>
+                <textarea id="transactionDescription" class="form-control" placeholder="Enter description" maxlength="40" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="transactionAmount">Amount (₹)</label>
+                <input type="number" id="transactionAmount" class="form-control" placeholder="Enter amount" step="0.01" min="0">
+            </div>
+            <div class="form-actions">
+                <button class="action-btn secondary-btn" id="cancelTransactionBtn">Cancel</button>
+                <button class="action-btn primary-btn" id="saveTransactionBtn">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-container" id="editTransactionFormContainer">
+        <div class="form-content">
+            <h3 class="form-title" id="editTransactionFormTitle">Edit Transaction</h3>
+            <div class="form-group">
+                <label for="editTransactionDate">Date</label>
+                <input type="date" id="editTransactionDate" class="form-control">
+            </div>
+            <div class="form-group">
+                <label for="editTransactionDescription">Description (max 40 chars)</label>
+                <textarea id="editTransactionDescription" class="form-control" placeholder="Enter description" maxlength="40" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="editTransactionAmount">Amount (₹)</label>
+                <input type="number" id="editTransactionAmount" class="form-control" placeholder="Enter amount" step="0.01" min="0">
+            </div>
+            <div class="form-group">
+                <label for="editTransactionType">Type</label>
+                <select id="editTransactionType" class="form-control">
+                    <option value="debit">Debit</option>
+                    <option value="credit">Credit</option>
+                </select>
+            </div>
+            <div class="form-actions">
+                <button class="action-btn secondary-btn" id="cancelEditTransactionBtn">Cancel</button>
+                <button class="action-btn primary-btn" id="saveEditTransactionBtn">Save</button>
+                <button class="action-btn" style="background-color: #F44336; color: white;" id="deleteTransactionBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-container" id="editLedgerFormContainer">
+        <div class="form-content">
+            <h3 class="form-title">Edit Ledger</h3>
+            <div class="form-group">
+                <label for="editLedgerName">Ledger Name</label>
+                <input type="text" id="editLedgerName" class="form-control" placeholder="Enter ledger name">
+            </div>
+            <div class="form-actions">
+                <button class="action-btn secondary-btn" id="cancelEditLedgerBtn">Cancel</button>
+                <button class="action-btn primary-btn" id="saveEditLedgerBtn">Save</button>
+                <button class="action-btn" style="background-color: #F44336; color: white;" id="deleteLedgerBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize jsPDF
+        const { jsPDF } = window.jspdf;
+        
+        // App State
+        let state = {
+            ledgers: [],
+            currentLedger: null,
+            currentTransactionType: null,
+            currentTransaction: null,
+            autoBackupInterval: null
+        };
+
+        // DOM Elements
+        const screens = {
+            dashboard: document.getElementById('dashboardScreen'),
+            ledger: document.getElementById('ledgerScreen'),
+            backup: document.getElementById('backupScreen')
+        };
+
+        const screenTitle = document.getElementById('screenTitle');
+        const backBtn = document.getElementById('backBtn');
+        const ledgerList = document.getElementById('ledgerList');
+        const searchInput = document.getElementById('searchInput');
+        const ledgerTitle = document.getElementById('ledgerTitle');
+        const currentDate = document.getElementById('currentDate');
+        const currentBalance = document.getElementById('currentBalance');
+        const transactionsList = document.getElementById('transactionsList');
+
+        // Buttons
+        const addLedgerBtn = document.getElementById('addLedgerBtn');
+        const backupBtn = document.getElementById('backupBtn');
+        const addDebitBtn = document.getElementById('addDebitBtn');
+        const addCreditBtn = document.getElementById('addCreditBtn');
+        const printPdfBtn = document.getElementById('printPdfBtn');
+        const downloadJsonBtn = document.getElementById('downloadJsonBtn');
+        const downloadExcelBtn = document.getElementById('downloadExcelBtn');
+        const restoreBtn = document.getElementById('restoreBtn');
+        const restoreFileInput = document.getElementById('restoreFileInput');
+
+        // Forms
+        const ledgerFormContainer = document.getElementById('ledgerFormContainer');
+        const ledgerNameInput = document.getElementById('ledgerName');
+        const cancelLedgerBtn = document.getElementById('cancelLedgerBtn');
+        const saveLedgerBtn = document.getElementById('saveLedgerBtn');
+
+        const transactionFormContainer = document.getElementById('transactionFormContainer');
+        const transactionFormTitle = document.getElementById('transactionFormTitle');
+        const transactionDateInput = document.getElementById('transactionDate');
+        const transactionDescriptionInput = document.getElementById('transactionDescription');
+        const transactionAmountInput = document.getElementById('transactionAmount');
+        const cancelTransactionBtn = document.getElementById('cancelTransactionBtn');
+        const saveTransactionBtn = document.getElementById('saveTransactionBtn');
+
+        const editTransactionFormContainer = document.getElementById('editTransactionFormContainer');
+        const editTransactionDateInput = document.getElementById('editTransactionDate');
+        const editTransactionDescriptionInput = document.getElementById('editTransactionDescription');
+        const editTransactionAmountInput = document.getElementById('editTransactionAmount');
+        const editTransactionTypeInput = document.getElementById('editTransactionType');
+        const cancelEditTransactionBtn = document.getElementById('cancelEditTransactionBtn');
+        const saveEditTransactionBtn = document.getElementById('saveEditTransactionBtn');
+        const deleteTransactionBtn = document.getElementById('deleteTransactionBtn');
+
+        const editLedgerFormContainer = document.getElementById('editLedgerFormContainer');
+        const editLedgerNameInput = document.getElementById('editLedgerName');
+        const cancelEditLedgerBtn = document.getElementById('cancelEditLedgerBtn');
+        const saveEditLedgerBtn = document.getElementById('saveEditLedgerBtn');
+        const deleteLedgerBtn = document.getElementById('deleteLedgerBtn');
+
+        // Initialize the app
+        function init() {
+            loadData();
+            setupEventListeners();
+            updateDashboard();
+            setCurrentDate();
+            startAutoBackup();
+        }
+
+        // Load data from localStorage
+        function loadData() {
+            const savedData = localStorage.getItem('ledgerManagerData');
+            if (savedData) {
+                state.ledgers = JSON.parse(savedData);
+            } else {
+                state.ledgers = [];
+            }
+        }
+
+        // Save data to localStorage
+        function saveData() {
+            localStorage.setItem('ledgerManagerData', JSON.stringify(state.ledgers));
+        }
+
+        // Auto backup every 2 seconds
+        function startAutoBackup() {
+            state.autoBackupInterval = setInterval(() => {
+                saveData();
+            }, 2000);
+        }
+
+        // Set up event listeners
+        function setupEventListeners() {
+            // Navigation
+            backBtn.addEventListener('click', navigateBack);
+            addLedgerBtn.addEventListener('click', showLedgerForm);
+            backupBtn.addEventListener('click', () => showScreen('backup'));
+            
+            // Dashboard
+            searchInput.addEventListener('input', updateDashboard);
+            
+            // Ledger View
+            addDebitBtn.addEventListener('click', () => showTransactionForm('debit'));
+            addCreditBtn.addEventListener('click', () => showTransactionForm('credit'));
+            printPdfBtn.addEventListener('click', downloadPdf);
+            
+            // Backup View
+            downloadJsonBtn.addEventListener('click', downloadJson);
+            downloadExcelBtn.addEventListener('click', downloadExcel);
+            restoreBtn.addEventListener('click', restoreData);
+            
+            // Forms
+            cancelLedgerBtn.addEventListener('click', hideLedgerForm);
+            saveLedgerBtn.addEventListener('click', saveLedger);
+            cancelTransactionBtn.addEventListener('click', hideTransactionForm);
+            saveTransactionBtn.addEventListener('click', saveTransaction);
+            
+            // Edit Transaction Form
+            cancelEditTransactionBtn.addEventListener('click', hideEditTransactionForm);
+            saveEditTransactionBtn.addEventListener('click', saveEditedTransaction);
+            deleteTransactionBtn.addEventListener('click', deleteTransaction);
+            
+            // Edit Ledger Form
+            cancelEditLedgerBtn.addEventListener('click', hideEditLedgerForm);
+            saveEditLedgerBtn.addEventListener('click', saveEditedLedger);
+            deleteLedgerBtn.addEventListener('click', deleteLedger);
+            
+            // Ledger title click for edit
+            ledgerTitle.addEventListener('click', () => {
+                if (state.currentLedger) {
+                    showEditLedgerForm(state.currentLedger);
+                }
+            });
+        }
+
+        // Navigate back
+        function navigateBack() {
+            if (screens.ledger.classList.contains('active')) {
+                showScreen('dashboard');
+            } else if (screens.backup.classList.contains('active')) {
+                showScreen('ledger');
+            }
+        }
+
+        // Show a specific screen
+        function showScreen(screenName) {
+            // Hide all screens
+            Object.values(screens).forEach(screen => {
+                screen.classList.remove('active');
+            });
+            
+            // Show the requested screen
+            screens[screenName].classList.add('active');
+            
+            // Update the header title
+            switch(screenName) {
+                case 'dashboard':
+                    screenTitle.textContent = 'Digital Ledger Manager';
+                    updateDashboard();
+                    break;
+                case 'ledger':
+                    screenTitle.textContent = state.currentLedger ? state.currentLedger.name : 'Ledger';
+                    updateLedgerView();
+                    break;
+                case 'backup':
+                    screenTitle.textContent = 'Backup & Restore';
+                    break;
+            }
+        }
+
+        // Update the dashboard view
+        function updateDashboard() {
+            const searchTerm = searchInput.value.toLowerCase();
+            
+            // Filter ledgers based on search term
+            const filteredLedgers = state.ledgers.filter(ledger => 
+                ledger.name.toLowerCase().includes(searchTerm));
+            
+            // Sort by most recently updated
+            filteredLedgers.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+            
+            // Clear the ledger list
+            ledgerList.innerHTML = '';
+            
+            // Add each ledger to the list
+            filteredLedgers.forEach(ledger => {
+                const balance = calculateLedgerBalance(ledger);
+                
+                const ledgerCard = document.createElement('div');
+                ledgerCard.className = 'ledger-card';
+                ledgerCard.innerHTML = `
+                    <div class="ledger-name">${ledger.name}</div>
+                    <div class="ledger-balance ${balance >= 0 ? 'positive' : 'negative'}">₹${balance.toFixed(2)}</div>
+                `;
+                
+                ledgerCard.addEventListener('click', () => {
+                    state.currentLedger = ledger;
+                    showScreen('ledger');
+                });
+                
+                ledgerList.appendChild(ledgerCard);
+            });
+            
+            // Show message if no ledgers
+            if (filteredLedgers.length === 0) {
+                const noLedgersMsg = document.createElement('div');
+                noLedgersMsg.className = 'text-center';
+                noLedgersMsg.textContent = searchTerm ? 'No matching ledgers found' : 'No ledgers created yet';
+                ledgerList.appendChild(noLedgersMsg);
+            }
+        }
+
+        // Update the ledger view
+        function updateLedgerView() {
+            if (!state.currentLedger) return;
+            
+            // Update ledger info
+            ledgerTitle.textContent = state.currentLedger.name;
+            
+            // Calculate and display balance
+            const balance = calculateLedgerBalance(state.currentLedger);
+            currentBalance.textContent = `₹${balance.toFixed(2)}`;
+            currentBalance.className = `balance ${balance >= 0 ? 'positive' : 'negative'}`;
+            
+            // Clear transactions list
+            transactionsList.innerHTML = '';
+            
+            // Add each transaction to the list
+            state.currentLedger.transactions.forEach(transaction => {
+                const transactionItem = document.createElement('div');
+                transactionItem.className = 'transaction-item';
+                
+                const transactionDate = new Date(transaction.date);
+                const formattedDate = transactionDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+                
+                // Format description with line breaks after 13 characters
+                let formattedDescription = transaction.description;
+                if (formattedDescription.length > 13) {
+                    formattedDescription = formattedDescription.substring(0, 13) + '\n' + formattedDescription.substring(13);
+                }
+                
+                transactionItem.innerHTML = `
+                    <div>${formattedDate}</div>
+                    <div class="transaction-description">${formattedDescription}</div>
+                    <div>
+                        <div class="transaction-amount ${transaction.type === 'debit' ? 'debit' : 'credit'}">₹${transaction.amount.toFixed(2)}</div>
+                        <div class="transaction-actions">
+                            <button class="transaction-action-btn edit-btn" data-id="${transaction.id}">Edit</button>
+                        </div>
+                    </div>
+                `;
+                
+                transactionsList.appendChild(transactionItem);
+            });
+            
+            // Add event listeners to edit buttons
+            document.querySelectorAll('.edit-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const transactionId = e.target.getAttribute('data-id');
+                    const transaction = state.currentLedger.transactions.find(t => t.id === transactionId);
+                    if (transaction) {
+                        showEditTransactionForm(transaction);
+                    }
+                });
+            });
+            
+            // Show message if no transactions
+            if (state.currentLedger.transactions.length === 0) {
+                const noTransactionsMsg = document.createElement('div');
+                noTransactionsMsg.className = 'text-center';
+                noTransactionsMsg.style.padding = '15px';
+                noTransactionsMsg.textContent = 'No transactions yet';
+                transactionsList.appendChild(noTransactionsMsg);
+            }
+        }
+
+        // Calculate the balance of a ledger
+        function calculateLedgerBalance(ledger) {
+            return ledger.transactions.reduce((total, transaction) => {
+                return transaction.type === 'debit' ? total + transaction.amount : total - transaction.amount;
+            }, 0);
+        }
+
+        // Show the ledger form
+        function showLedgerForm() {
+            ledgerNameInput.value = '';
+            ledgerFormContainer.classList.add('active');
+        }
+
+        // Hide the ledger form
+        function hideLedgerForm() {
+            ledgerFormContainer.classList.remove('active');
+        }
+
+        // Save a new ledger
+        function saveLedger() {
+            const name = ledgerNameInput.value.trim();
+            
+            if (!name) {
+                alert('Please enter a ledger name');
+                return;
+            }
+            
+            // Check if ledger already exists
+            if (state.ledgers.some(ledger => ledger.name.toLowerCase() === name.toLowerCase())) {
+                alert('A ledger with this name already exists');
+                return;
+            }
+            
+            // Create new ledger
+            const newLedger = {
+                id: Date.now().toString(),
+                name,
+                transactions: [],
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
+            
+            // Add to state and save
+            state.ledgers.push(newLedger);
+            saveData();
+            
+            // Update UI
+            hideLedgerForm();
+            updateDashboard();
+        }
+
+        // Show the transaction form
+        function showTransactionForm(type) {
+            state.currentTransactionType = type;
+            
+            // Set form title based on type
+            transactionFormTitle.textContent = `Add ${type.charAt(0).toUpperCase() + type.slice(1)}`;
+            
+            // Set default values
+            const today = new Date();
+            transactionDateInput.value = today.toISOString().split('T')[0];
+            transactionDescriptionInput.value = '';
+            transactionAmountInput.value = '';
+            
+            // Show the form
+            transactionFormContainer.classList.add('active');
+        }
+
+        // Hide the transaction form
+        function hideTransactionForm() {
+            transactionFormContainer.classList.remove('active');
+        }
+
+        // Save a new transaction
+        function saveTransaction() {
+            if (!state.currentLedger) return;
+            
+            const date = transactionDateInput.value;
+            const description = transactionDescriptionInput.value.trim();
+            const amount = parseFloat(transactionAmountInput.value);
+            
+            // Validate inputs
+            if (!date || !description || isNaN(amount) || amount <= 0) {
+                alert('Please fill all fields with valid values');
+                return;
+            }
+            
+            // Create new transaction
+            const newTransaction = {
+                id: Date.now().toString(),
+                date,
+                description,
+                type: state.currentTransactionType,
+                amount,
+                createdAt: new Date().toISOString()
+            };
+            
+            // Add to current ledger
+            state.currentLedger.transactions.push(newTransaction);
+            state.currentLedger.updatedAt = new Date().toISOString();
+            
+            // Save and update UI
+            saveData();
+            hideTransactionForm();
+            updateLedgerView();
+        }
+
+        // Show edit transaction form
+        function showEditTransactionForm(transaction) {
+            state.currentTransaction = transaction;
+            
+            // Set form values
+            editTransactionDateInput.value = transaction.date;
+            editTransactionDescriptionInput.value = transaction.description;
+            editTransactionAmountInput.value = transaction.amount;
+            editTransactionTypeInput.value = transaction.type;
+            
+            // Show the form
+            editTransactionFormContainer.classList.add('active');
+        }
+
+        // Hide edit transaction form
+        function hideEditTransactionForm() {
+            editTransactionFormContainer.classList.remove('active');
+        }
+
+        // Save edited transaction
+        function saveEditedTransaction() {
+            if (!state.currentLedger || !state.currentTransaction) return;
+            
+            const date = editTransactionDateInput.value;
+            const description = editTransactionDescriptionInput.value.trim();
+            const amount = parseFloat(editTransactionAmountInput.value);
+            const type = editTransactionTypeInput.value;
+            
+            // Validate inputs
+            if (!date || !description || isNaN(amount) || amount <= 0) {
+                alert('Please fill all fields with valid values');
+                return;
+            }
+            
+            // Update transaction
+            state.currentTransaction.date = date;
+            state.currentTransaction.description = description;
+            state.currentTransaction.amount = amount;
+            state.currentTransaction.type = type;
+            state.currentLedger.updatedAt = new Date().toISOString();
+            
+            // Save and update UI
+            saveData();
+            hideEditTransactionForm();
+            updateLedgerView();
+        }
+
+        // Delete transaction
+        function deleteTransaction() {
+            if (!state.currentLedger || !state.currentTransaction) return;
+            
+            if (confirm('Are you sure you want to delete this transaction?')) {
+                // Remove transaction
+                state.currentLedger.transactions = state.currentLedger.transactions.filter(
+                    t => t.id !== state.currentTransaction.id
+                );
+                state.currentLedger.updatedAt = new Date().toISOString();
+                
+                // Save and update UI
+                saveData();
+                hideEditTransactionForm();
+                updateLedgerView();
+            }
+        }
+
+        // Show edit ledger form
+        function showEditLedgerForm(ledger) {
+            editLedgerNameInput.value = ledger.name;
+            editLedgerFormContainer.classList.add('active');
+        }
+
+        // Hide edit ledger form
+        function hideEditLedgerForm() {
+            editLedgerFormContainer.classList.remove('active');
+        }
+
+        // Save edited ledger
+        function saveEditedLedger() {
+            if (!state.currentLedger) return;
+            
+            const name = editLedgerNameInput.value.trim();
+            
+            if (!name) {
+                alert('Please enter a ledger name');
+                return;
+            }
+            
+            // Check if ledger name already exists (excluding current ledger)
+            if (state.ledgers.some(ledger => 
+                ledger.id !== state.currentLedger.id && 
+                ledger.name.toLowerCase() === name.toLowerCase()
+            )) {
+                alert('A ledger with this name already exists');
+                return;
+            }
+            
+            // Update ledger
+            state.currentLedger.name = name;
+            state.currentLedger.updatedAt = new Date().toISOString();
+            
+            // Save and update UI
+            saveData();
+            hideEditLedgerForm();
+            updateLedgerView();
+            updateDashboard();
+        }
+
+        // Delete ledger
+        function deleteLedger() {
+            if (!state.currentLedger) return;
+            
+            if (confirm('Are you sure you want to delete this ledger and all its transactions?')) {
+                // Remove ledger
+                state.ledgers = state.ledgers.filter(
+                    l => l.id !== state.currentLedger.id
+                );
+                
+                // Save and update UI
+                saveData();
+                hideEditLedgerForm();
+                state.currentLedger = null;
+                showScreen('dashboard');
+                updateDashboard();
+            }
+        }
+
+        // Set the current date in UI elements
+        function setCurrentDate() {
+            const today = new Date();
+            const options = { day: 'numeric', month: 'short', year: 'numeric' };
+            currentDate.textContent = today.toLocaleDateString('en-IN', options);
+        }
+
+        // Download data as JSON
+        function downloadJson() {
+            const dataStr = JSON.stringify(state.ledgers, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,' + encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `ledgers_${new Date().toISOString().split('T')[0]}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        }
+
+        // Download data as Excel (XLSX) with separate sheets
+        function downloadExcel() {
+            const workbook = XLSX.utils.book_new();
+            
+            state.ledgers.forEach(ledger => {
+                // Prepare data for this ledger
+                const data = [
+                    ['Date', 'Description', 'Type', 'Amount'], // Header row
+                    ...ledger.transactions.map(transaction => {
+                        const transactionDate = new Date(transaction.date);
+                        const formattedDate = transactionDate.toLocaleDateString('en-IN');
+                        
+                        return [
+                            formattedDate,
+                            transaction.description,
+                            transaction.type,
+                            transaction.amount
+                        ];
+                    }),
+                    ['', '', 'Balance:', calculateLedgerBalance(ledger)] // Footer row
+                ];
+                
+                // Create worksheet
+                const worksheet = XLSX.utils.aoa_to_sheet(data);
+                
+                // Add worksheet to workbook with ledger name as sheet name
+                XLSX.utils.book_append_sheet(workbook, worksheet, ledger.name.substring(0, 31)); // Sheet names max 31 chars
+            });
+            
+            // Generate Excel file
+            XLSX.writeFile(workbook, `ledgers_${new Date().toISOString().split('T')[0]}.xlsx`);
+        }
+
+        // Download PDF
+        function downloadPdf() {
+            if (!state.currentLedger) return;
+            
+            // Create a temporary div for PDF generation
+            const pdfContainer = document.createElement('div');
+            pdfContainer.style.width = '210mm';
+            pdfContainer.style.padding = '20px';
+            pdfContainer.style.fontFamily = 'Arial, sans-serif';
+            
+            // Add ledger info
+            const balance = calculateLedgerBalance(state.currentLedger);
+            const today = new Date();
+            const formattedDate = today.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+            
+            pdfContainer.innerHTML = `
+                <h1 style="text-align: center; margin-bottom: 20px;">${state.currentLedger.name}</h1>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                    <div><strong>Date:</strong> ${formattedDate}</div>
+                    <div><strong>Balance:</strong> <span style="color: ${balance >= 0 ? '#4CAF50' : '#F44336'}">₹${balance.toFixed(2)}</span></div>
+                </div>
+                <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+                    <thead>
+                        <tr style="background-color: #f1f3f4;">
+                            <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Date</th>
+                            <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Description</th>
+                            <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Type</th>
+                            <th style="padding: 10px; text-align: right; border-bottom: 2px solid #ddd;">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${state.currentLedger.transactions.map(transaction => {
+                            const transactionDate = new Date(transaction.date);
+                            const formattedDate = transactionDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+                            
+                            return `
+                                <tr>
+                                    <td style="padding: 10px; border-bottom: 1px solid #eee;">${formattedDate}</td>
+                                    <td style="padding: 10px; border-bottom: 1px solid #eee; max-width: 200px; word-wrap: break-word;">${transaction.description}</td>
+                                    <td style="padding: 10px; border-bottom: 1px solid #eee;">${transaction.type}</td>
+                                    <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right; color: ${transaction.type === 'debit' ? '#4CAF50' : '#F44336'}">₹${transaction.amount.toFixed(2)}</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+                <div style="text-align: right; margin-top: 50px;">
+                    <p>_________________________</p>
+                    <p>Signatory Authority</p>
+                </div>
+            `;
+            
+            // Add to body temporarily
+            document.body.appendChild(pdfContainer);
+            
+            // Generate PDF
+            html2canvas(pdfContainer, {
+                scale: 2,
+                logging: false,
+                useCORS: true
+            }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const imgWidth = 210; // A4 width in mm
+                const pageHeight = 295; // A4 height in mm
+                const imgHeight = canvas.height * imgWidth / canvas.width;
+                let heightLeft = imgHeight;
+                let position = 0;
+                
+                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+                
+                while (heightLeft >= 0) {
+                    position = heightLeft - imgHeight;
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+                }
+                
+                pdf.save(`${state.currentLedger.name}_${formattedDate}.pdf`);
+                document.body.removeChild(pdfContainer);
+            });
+        }
+
+        // Restore data from file (both JSON and Excel)
+        function restoreData() {
+            const file = restoreFileInput.files[0];
+            if (!file) {
+                alert('Please select a file to restore');
+                return;
+            }
+            
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    // Check if file is Excel
+                    if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                        restoreFromExcel(e.target.result);
+                    } else {
+                        // Assume it's JSON
+                        restoreFromJson(e.target.result);
+                    }
+                } catch (error) {
+                    alert('Error restoring data: ' + error.message);
+                }
+            };
+            
+            if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+                reader.readAsArrayBuffer(file);
+            } else {
+                reader.readAsText(file);
+            }
+        }
+
+        // Restore from JSON
+        function restoreFromJson(data) {
+            const parsedData = JSON.parse(data);
+            
+            if (!Array.isArray(parsedData)) {
+                throw new Error('Invalid data format');
+            }
+            
+            // Validate ledger structure
+            const isValid = parsedData.every(ledger => {
+                return ledger.name && Array.isArray(ledger.transactions);
+            });
+            
+            if (!isValid) {
+                throw new Error('Invalid ledger data structure');
+            }
+            
+            // Confirm with user
+            if (confirm('This will replace all current data. Are you sure?')) {
+                state.ledgers = parsedData;
+                saveData();
+                updateDashboard();
+                alert('Data restored successfully from JSON');
+                restoreFileInput.value = '';
+            }
+        }
+
+        // Restore from Excel
+        function restoreFromExcel(data) {
+            const workbook = XLSX.read(data, { type: 'array' });
+            const newLedgers = [];
+            
+            // Process each sheet
+            workbook.SheetNames.forEach(sheetName => {
+                const worksheet = workbook.Sheets[sheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                
+                // Skip if empty sheet
+                if (jsonData.length <= 1) return;
+                
+                const ledgerName = sheetName;
+                const transactions = [];
+                
+                // Process rows (skip header row)
+                for (let i = 1; i < jsonData.length; i++) {
+                    const row = jsonData[i];
+                    
+                    // Skip empty rows or balance row
+                    if (!row || row.length < 4 || row[0] === '' || row[0] === 'Balance:') continue;
+                    
+                    // Parse date - try multiple formats
+                    let transactionDate;
+                    try {
+                        transactionDate = new Date(row[0]);
+                        if (isNaN(transactionDate.getTime())) {
+                            // Try parsing as Excel date number
+                            transactionDate = XLSX.SSF.parse_date_code(row[0]);
+                        }
+                    } catch (e) {
+                        console.warn('Could not parse date:', row[0]);
+                        continue;
+                    }
+                    
+                    // Create transaction
+                    transactions.push({
+                        id: Date.now().toString() + i,
+                        date: transactionDate.toISOString().split('T')[0],
+                        description: row[1] || '',
+                        type: row[2]?.toLowerCase() === 'credit' ? 'credit' : 'debit',
+                        amount: parseFloat(row[3]) || 0,
+                        createdAt: new Date().toISOString()
+                    });
+                }
+                
+                // Add ledger
+                newLedgers.push({
+                    id: Date.now().toString(),
+                    name: ledgerName,
+                    transactions,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                });
+            });
+            
+            if (newLedgers.length === 0) {
+                throw new Error('No valid ledger data found in Excel file');
+            }
+            
+            // Confirm with user
+            if (confirm(`This will replace all current data with ${newLedgers.length} ledgers from Excel. Are you sure?`)) {
+                state.ledgers = newLedgers;
+                saveData();
+                updateDashboard();
+                alert('Data restored successfully from Excel');
+                restoreFileInput.value = '';
+            }
+        }
+
+        // Initialize the app when the DOM is loaded
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
